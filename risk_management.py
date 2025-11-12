@@ -228,9 +228,17 @@ class RiskManagement:
                 take_profit = entry_price - (sl_pips * 2)
             tp_pips = abs(take_profit - entry_price)
 
-        # Convert to pips (multiply by 10000 for most pairs, 100 for JPY pairs)
-        # This is for display purposes
-        pip_multiplier = 100 if "JPY" in str(entry_price) else 10000
+        # Convert to pips/points for display
+        # Different multipliers for different asset types
+        if symbol in ["XAUUSD", "XAGUSD", "XTIUSD"]:
+            # Commodities (Gold, Silver, Oil): 1 point = $0.01
+            pip_multiplier = 100
+        elif "JPY" in symbol:
+            # JPY pairs: 1 pip = 0.01
+            pip_multiplier = 100
+        else:
+            # Most forex pairs: 1 pip = 0.0001
+            pip_multiplier = 10000
 
         return {
             'stop_loss': round(stop_loss, 5),
@@ -283,11 +291,11 @@ class RiskManagement:
         if not allowed:
             return None
 
-        # Check volatility filter
+        # Check volatility filter - REJECT trades outside acceptable range
         vol_allowed, vol_reason = self.check_volatility_filter(atr, entry_price)
         if not vol_allowed:
-            print(f"Volatility filter: {vol_reason}")
-            # Don't block trade, but log the warning
+            print(f"❌ Trade rejected - {vol_reason}")
+            return None
 
         # Calculate SL and TP
         sl_tp = self.calculate_stop_loss_take_profit(

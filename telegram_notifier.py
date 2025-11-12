@@ -72,26 +72,30 @@ class TelegramNotifier:
         # Trade Details
         message += f"📊 <b>Symbol:</b> {trade_details['symbol']}\n"
         message += f"📈 <b>Action:</b> {trade_details['direction']}\n"
-        message += f"💰 <b>Entry Price:</b> {trade_details['entry_price']:.5f}\n\n"
+        message += f"💰 <b>Current Price:</b> {trade_details['entry_price']:.5f} <i>(indicative)</i>\n\n"
 
         # Order Details for MT5
         message += f"<b>📋 MT5 ORDER DETAILS:</b>\n"
         message += f"━━━━━━━━━━━━━━━━━━━━━━\n"
-        message += f"<b>Order Type:</b> Market\n"
+        message += f"<b>Order Type:</b> Market Execution\n"
         message += f"<b>Symbol:</b> {trade_details['symbol']}\n"
         message += f"<b>Direction:</b> {trade_details['direction']}\n"
         message += f"<b>Quantity:</b> {trade_details['position_size']} lots\n"
-        message += f"<b>Entry Price:</b> {trade_details['entry_price']:.5f}\n\n"
+        message += f"<i>Note: Market orders execute at best available price</i>\n\n"
 
         # Stop Loss & Take Profit
+        # Determine if we should show "pips" or "points"
+        symbol = trade_details['symbol']
+        unit_label = "Points" if symbol in ["XAUUSD", "XAGUSD", "XTIUSD"] else "Pips"
+
         message += f"<b>🛡️ Stop Loss:</b>\n"
         message += f"  Price: {trade_details['stop_loss']:.5f}\n"
-        message += f"  Pips: {trade_details['sl_pips']:.1f}\n"
+        message += f"  {unit_label}: {trade_details['sl_pips']:.1f}\n"
         message += f"  Trailing SL: Disable\n\n"
 
         message += f"<b>🎯 Take Profit:</b>\n"
         message += f"  Price: {trade_details['take_profit']:.5f}\n"
-        message += f"  Pips: {trade_details['tp_pips']:.1f}\n\n"
+        message += f"  {unit_label}: {trade_details['tp_pips']:.1f}\n\n"
 
         # Risk Management
         message += f"<b>⚖️ RISK MANAGEMENT:</b>\n"
