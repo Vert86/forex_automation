@@ -35,6 +35,7 @@ class FIXClient:
         self.target_comp_id = fconfig.FIX_TARGET_COMP_ID
         self.password = fconfig.FIX_PASSWORD
         self.account_id = fconfig.FIX_ACCOUNT_ID
+        self.sender_sub_id = fconfig.FIX_SENDER_SUB_ID
 
         self.socket = None
         self.connected = False
@@ -112,6 +113,7 @@ class FIXClient:
             logon.append_string("8=FIX.4.4")
             logon.append_pair(35, "A")  # MsgType = Logon
             logon.append_pair(49, self.sender_comp_id)  # SenderCompID
+            logon.append_pair(50, self.sender_sub_id)  # SenderSubID (TRADE for trading connection)
             logon.append_pair(56, self.target_comp_id)  # TargetCompID
             logon.append_pair(34, self.sequence_number)  # MsgSeqNum
             logon.append_pair(52, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S"))  # SendingTime

@@ -10,15 +10,16 @@ Add your FIX API credentials here
 # Enable/Disable Automatic Trading
 AUTO_TRADING_ENABLED = False  # SET TO True TO ENABLE AUTO-TRADING (start with False for safety!)
 
-# FIX API Connection Details (Get these from ICMarkets)
-FIX_HOST = "h51.p.ctrader.com"  # ICMarkets cTrader FIX host
-FIX_PORT = 5201  # Standard FIX port for cTrader
+# FIX API Connection Details - ICMarkets Demo Account
+FIX_HOST = "demo-uk-eqx-01.p.c-trader.com"  # ICMarkets UK Demo server
+FIX_PORT = 5202  # Plain text connection (5212 for SSL)
 
-# FIX API Credentials (IMPORTANT: Get from ICMarkets dashboard)
-FIX_SENDER_COMP_ID = ""  # Your cTrader account username/ID
-FIX_TARGET_COMP_ID = "CSERVER"  # cTrader FIX server ID (usually CSERVER)
-FIX_PASSWORD = ""  # Your FIX API password
-FIX_ACCOUNT_ID = ""  # Your trading account number
+# FIX API Credentials - YOUR DEMO ACCOUNT
+FIX_SENDER_COMP_ID = "demo.icmarkets.9648234"  # Your demo account sender ID
+FIX_TARGET_COMP_ID = "cServer"  # cTrader FIX server ID
+FIX_PASSWORD = ""  # TODO: ADD YOUR ACCOUNT 9648234 PASSWORD HERE!
+FIX_ACCOUNT_ID = "9648234"  # Your demo account number
+FIX_SENDER_SUB_ID = "TRADE"  # Trade connection (use "QUOTE" for price feed)
 
 # FIX Protocol Version
 FIX_VERSION = "FIX.4.4"  # cTrader uses FIX 4.4
