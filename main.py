@@ -14,6 +14,15 @@ from strategy import TradingStrategy
 from risk_management import RiskManagement
 from telegram_notifier import TelegramNotifier
 
+# Import order executor for automatic trading (optional)
+try:
+    from order_executor import OrderExecutor
+    import fix_config
+    ORDER_EXECUTOR_AVAILABLE = True
+except ImportError:
+    ORDER_EXECUTOR_AVAILABLE = False
+    print("ℹ️  Order executor not available - signals only mode")
+
 
 class ForexTradingBot:
     """Main trading bot class"""
@@ -27,6 +36,14 @@ class ForexTradingBot:
         self.strategy = TradingStrategy()
         self.risk_manager = RiskManagement()
         self.notifier = TelegramNotifier()
+
+        # Initialize order executor (for automatic trading)
+        self.order_executor = None
+        if ORDER_EXECUTOR_AVAILABLE and fix_config.AUTO_TRADING_ENABLED:
+            print("\n🤖 Auto-trading mode: ENABLED")
+            self.order_executor = OrderExecutor(telegram_notifier=self.notifier)
+        else:
+            print("\n📊 Signals-only mode: Bot will send alerts without executing trades")
 
         # Statistics
         self.signals_today = {'BUY': 0, 'SELL': 0, 'HOLD': 0}
@@ -158,15 +175,16 @@ class ForexTradingBot:
 
     def send_signals(self, signals):
         """
-        Send trading signals via Telegram
+        Send trading signals via Telegram and optionally execute trades
 
         Args:
             signals: List of signal dicts
         """
         for signal_data in signals:
             try:
-                print(f"\n📤 Sending signal for {signal_data['symbol']}...")
+                print(f"\n📤 Processing signal for {signal_data['symbol']}...")
 
+                # Send Telegram notification
                 response = self.notifier.send_trade_signal(
                     trade_details=signal_data['trade_details'],
                     signal_info=signal_data['signal']
@@ -177,8 +195,21 @@ class ForexTradingBot:
                 else:
                     print(f"⚠️  Failed to send signal for {signal_data['symbol']}")
 
+                # Execute trade if auto-trading is enabled
+                if self.order_executor:
+                    print(f"\n🤖 Executing automatic trade for {signal_data['symbol']}...")
+                    exec_result = self.order_executor.execute_trade(
+                        trade_details=signal_data['trade_details'],
+                        signal_info=signal_data['signal']
+                    )
+
+                    if exec_result['success']:
+                        print(f"✅ Trade executed: {exec_result['order_id']} ({exec_result['mode']})")
+                    else:
+                        print(f"⚠️  Trade not executed: {exec_result['message']}")
+
             except Exception as e:
-                print(f"❌ Error sending signal for {signal_data['symbol']}: {e}")
+                print(f"❌ Error processing signal for {signal_data['symbol']}: {e}")
 
     def send_daily_summary(self):
         """Send daily summary of trading activity"""
@@ -250,6 +281,12 @@ class ForexTradingBot:
                 self.notifier.send_shutdown_message()
             except Exception as e:
                 print(f"Could not send shutdown message: {e}")
+
+            # Close FIX connection if active
+            if self.order_executor:
+                print("Closing FIX API connection...")
+                self.order_executor.close()
+
             print("✅ Bot stopped successfully")
 
     def test_single_symbol(self, symbol):

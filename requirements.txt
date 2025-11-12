@@ -9,3 +9,4 @@ schedule==1.2.0
 pytz==2023.3
 scipy==1.11.4
 yfinance==0.2.32
+simplefix==1.0.16
