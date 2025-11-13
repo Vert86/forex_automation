@@ -234,6 +234,9 @@ class RiskManagement:
         if symbol in ["XAUUSD", "XAGUSD", "XTIUSD"]:
             # Commodities (Gold, Silver, Oil): 1 point = $0.01
             pip_multiplier = 100
+        elif any(crypto in symbol for crypto in ["BTC", "ETH", "LTC"]):
+            # Crypto: Show actual price difference (no pip conversion)
+            pip_multiplier = 1
         elif "JPY" in symbol:
             # JPY pairs: 1 pip = 0.01
             pip_multiplier = 100

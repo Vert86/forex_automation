@@ -86,7 +86,10 @@ class TelegramNotifier:
         # Stop Loss & Take Profit
         # Determine if we should show "pips" or "points"
         symbol = trade_details['symbol']
-        unit_label = "Points" if symbol in ["XAUUSD", "XAGUSD", "XTIUSD"] else "Pips"
+        # Use "Points" for commodities and crypto, "Pips" for forex
+        is_commodity = symbol in ["XAUUSD", "XAGUSD", "XTIUSD"]
+        is_crypto = any(crypto in symbol for crypto in ["BTC", "ETH", "LTC"])
+        unit_label = "Points" if (is_commodity or is_crypto) else "Pips"
 
         message += f"<b>🛡️ Stop Loss:</b>\n"
         message += f"  Price: {trade_details['stop_loss']:.5f}\n"
