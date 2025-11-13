@@ -113,7 +113,7 @@ class FIXClient:
         """Send logon message"""
         try:
             logon = simplefix.FixMessage()
-            logon.append_string("8=FIX.4.4\x01")  # BeginString with SOH delimiter
+            logon.begin_string = b'FIX.4.4'  # Must be set BEFORE other fields
             logon.append_pair(35, "A", header=True)  # MsgType = Logon
             logon.append_pair(49, self.sender_comp_id, header=True)  # SenderCompID
             logon.append_pair(50, self.sender_sub_id, header=True)  # SenderSubID (TRADE for trading connection)
@@ -267,7 +267,7 @@ class FIXClient:
         """Send heartbeat message"""
         try:
             heartbeat = simplefix.FixMessage()
-            heartbeat.append_string("8=FIX.4.4\x01")  # BeginString
+            heartbeat.begin_string = b'FIX.4.4'
             heartbeat.append_pair(35, "0", header=True)  # MsgType = Heartbeat
             heartbeat.append_pair(49, self.sender_comp_id, header=True)
             heartbeat.append_pair(56, self.target_comp_id, header=True)
@@ -316,7 +316,7 @@ class FIXClient:
 
             # Create new order message
             order = simplefix.FixMessage()
-            order.append_string("8=FIX.4.4\x01")  # BeginString
+            order.begin_string = b'FIX.4.4'
             order.append_pair(35, "D", header=True)  # MsgType = NewOrderSingle
             order.append_pair(49, self.sender_comp_id, header=True)
             order.append_pair(50, self.sender_sub_id, header=True)  # SenderSubID
@@ -390,7 +390,7 @@ class FIXClient:
                 sl_cl_ord_id = f"SL_{parent_cl_ord_id}_{int(time.time() * 1000)}"
 
                 sl_order = simplefix.FixMessage()
-                sl_order.append_string("8=FIX.4.4\x01")  # BeginString
+                sl_order.begin_string = b'FIX.4.4'
                 sl_order.append_pair(35, "D", header=True)  # MsgType = NewOrderSingle
                 sl_order.append_pair(49, self.sender_comp_id, header=True)
                 sl_order.append_pair(50, self.sender_sub_id, header=True)  # SenderSubID
@@ -418,7 +418,7 @@ class FIXClient:
                 tp_cl_ord_id = f"TP_{parent_cl_ord_id}_{int(time.time() * 1000)}"
 
                 tp_order = simplefix.FixMessage()
-                tp_order.append_string("8=FIX.4.4\x01")  # BeginString
+                tp_order.begin_string = b'FIX.4.4'
                 tp_order.append_pair(35, "D", header=True)  # MsgType = NewOrderSingle
                 tp_order.append_pair(49, self.sender_comp_id, header=True)
                 tp_order.append_pair(50, self.sender_sub_id, header=True)  # SenderSubID
@@ -488,7 +488,7 @@ class FIXClient:
             if self.logged_in:
                 try:
                     logout = simplefix.FixMessage()
-                    logout.append_string("8=FIX.4.4\x01")  # BeginString
+                    logout.begin_string = b'FIX.4.4'
                     logout.append_pair(35, "5", header=True)  # MsgType = Logout
                     logout.append_pair(49, self.sender_comp_id, header=True)
                     logout.append_pair(56, self.target_comp_id, header=True)
