@@ -153,9 +153,11 @@ class FIXClient:
         """Send FIX message"""
         try:
             encoded = message.encode()
+            # Log the actual raw bytes being sent
+            self.logger.debug(f"Sent (raw): {encoded}")
+            self.logger.debug(f"Sent (readable): {encoded.replace(b'\\x01', b'|').decode('latin-1')}")
             self.socket.sendall(encoded)
             self.sequence_number += 1
-            self.logger.debug(f"Sent: {message}")
             return True
         except Exception as e:
             self.logger.error(f"[FAIL] Send failed: {e}")
@@ -196,6 +198,10 @@ class FIXClient:
         try:
             msg_type = message.get(35)  # MsgType
 
+            # Log all received messages
+            self.logger.debug(f"Received message type: {msg_type}")
+            self.logger.debug(f"Received (full): {message}")
+
             if msg_type == b'A':  # Logon
                 self.logged_in = True
                 self.logger.info("[OK] Login accepted by server")
@@ -210,16 +216,24 @@ class FIXClient:
                 self._handle_execution_report(message)
 
             elif msg_type == b'3':  # Reject
-                self.logger.warning(f"[WARN] Message rejected: {message}")
+                self.logger.error(f"[FAIL] Message REJECTED by server!")
                 # Try to get reject reason
-                if message.get(58):  # Text field
-                    self.logger.warning(f"[WARN] Reason: {message.get(58).decode()}")
+                if message.get(58):  # Text field (reason)
+                    self.logger.error(f"[FAIL] Reject reason: {message.get(58).decode()}")
+                if message.get(372):  # RefMsgType
+                    self.logger.error(f"[FAIL] Rejected message type: {message.get(372).decode()}")
+                if message.get(373):  # SessionRejectReason
+                    self.logger.error(f"[FAIL] Session reject code: {message.get(373).decode()}")
 
             elif msg_type == b'5':  # Logout
-                self.logger.info("Logout received from server")
+                self.logger.warning("[WARN] Logout received from server")
+                # Check for logout reason
+                if message.get(58):
+                    self.logger.warning(f"[WARN] Logout reason: {message.get(58).decode()}")
                 self.logged_in = False
 
-            self.logger.debug(f"Received: {message}")
+            else:
+                self.logger.warning(f"[WARN] Unknown message type: {msg_type}")
 
         except Exception as e:
             self.logger.error(f"Error processing message: {e}")
