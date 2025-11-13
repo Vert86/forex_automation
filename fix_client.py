@@ -155,7 +155,8 @@ class FIXClient:
             encoded = message.encode()
             # Log the actual raw bytes being sent
             self.logger.debug(f"Sent (raw): {encoded}")
-            self.logger.debug(f"Sent (readable): {encoded.replace(b'\\x01', b'|').decode('latin-1')}")
+            readable = encoded.replace(b'\x01', b'|').decode('latin-1')
+            self.logger.debug(f"Sent (readable): {readable}")
             self.socket.sendall(encoded)
             self.sequence_number += 1
             return True
