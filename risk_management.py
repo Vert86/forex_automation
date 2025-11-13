@@ -141,12 +141,13 @@ class RiskManagement:
 
         return pip_value
 
-    def calculate_stop_loss_take_profit(self, entry_price, direction, atr,
+    def calculate_stop_loss_take_profit(self, symbol, entry_price, direction, atr,
                                        support_levels, resistance_levels):
         """
         Calculate dynamic stop loss and take profit levels
 
         Args:
+            symbol: Trading symbol (for pip calculation)
             entry_price: Entry price for the trade
             direction: 'BUY' or 'SELL'
             atr: Current ATR value
@@ -299,7 +300,7 @@ class RiskManagement:
 
         # Calculate SL and TP
         sl_tp = self.calculate_stop_loss_take_profit(
-            entry_price, direction, atr, support_levels, resistance_levels
+            symbol, entry_price, direction, atr, support_levels, resistance_levels
         )
 
         # Calculate position size
