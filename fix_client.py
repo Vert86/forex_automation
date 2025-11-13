@@ -217,10 +217,25 @@ class FIXClient:
                 self.orders[cl_ord_id]['order_id'] = order_id
 
             # Log execution
-            if exec_type in ['1', '2']:  # Partial fill or Fill
+            if exec_type in ['1', '2']:  # Partial fill or Fill (1=PartialFill, 2=Fill)
                 fill_price = float(message.get(44).decode()) if message.get(44) else 0
                 fill_qty = float(message.get(32).decode()) if message.get(32) else 0
                 self.logger.info(f"✅ Order filled: {fill_qty} @ {fill_price}")
+
+                # Send protective stop loss and take profit orders after main order fills
+                if exec_type == '2' and cl_ord_id in self.orders:  # Fully filled
+                    order_data = self.orders[cl_ord_id]
+                    if order_data.get('stop_loss') or order_data.get('take_profit'):
+                        self.logger.info("Sending protective orders (SL/TP)...")
+                        self._send_protective_orders(
+                            cl_ord_id,
+                            order_data['symbol'],
+                            order_data['side'],
+                            order_data['quantity'],
+                            fill_price,
+                            order_data.get('stop_loss'),
+                            order_data.get('take_profit')
+                        )
 
         except Exception as e:
             self.logger.error(f"Error handling execution report: {e}")
@@ -294,13 +309,15 @@ class FIXClient:
             order.append_pair(40, "1")  # OrdType = Market
             order.append_pair(59, "1")  # TimeInForce = GTC
 
-            # Add stop loss if provided
+            # For cTrader, we can include SL/TP directly in the order using extension tags
+            # Tag 7001 = StopLoss, Tag 7002 = TakeProfit (cTrader proprietary)
             if stop_loss:
-                order.append_pair(99, f"{stop_loss:.5f}")  # StopPx
+                # Store for later - will send as separate protective order after fill
+                pass  # Handled after execution
 
-            # Add take profit if provided
             if take_profit:
-                # Note: Take profit handled separately in cTrader via separate order
+                # Store for later - will send as separate protective order after fill
+                pass  # Handled after execution
 
             self._send_message(order)
 
@@ -323,6 +340,83 @@ class FIXClient:
         except Exception as e:
             self.logger.error(f"❌ Error sending order: {e}")
             return None
+
+    def _send_protective_orders(self, parent_cl_ord_id, symbol, side, quantity, entry_price, stop_loss, take_profit):
+        """
+        Send protective stop loss and take profit orders after main order fills
+
+        Args:
+            parent_cl_ord_id: Client order ID of the filled main order
+            symbol: Trading symbol
+            side: Original order side ("BUY" or "SELL")
+            quantity: Position quantity in lots
+            entry_price: Actual fill price of main order
+            stop_loss: Stop loss price (optional)
+            take_profit: Take profit price (optional)
+        """
+        try:
+            # For a BUY position:
+            # - Stop Loss is a SELL Stop order below entry
+            # - Take Profit is a SELL Limit order above entry
+            # For a SELL position: opposite
+
+            # Send Stop Loss order (if provided)
+            if stop_loss:
+                sl_side = "SELL" if side == "BUY" else "BUY"
+                sl_cl_ord_id = f"SL_{parent_cl_ord_id}_{int(time.time() * 1000)}"
+
+                sl_order = simplefix.FixMessage()
+                sl_order.append_string("8=FIX.4.4")
+                sl_order.append_pair(35, "D")  # MsgType = NewOrderSingle
+                sl_order.append_pair(49, self.sender_comp_id)
+                sl_order.append_pair(50, self.sender_sub_id)  # SenderSubID
+                sl_order.append_pair(56, self.target_comp_id)
+                sl_order.append_pair(34, self.sequence_number)
+                sl_order.append_pair(52, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S"))
+
+                sl_order.append_pair(11, sl_cl_ord_id)  # ClOrdID
+                sl_order.append_pair(1, self.account_id)  # Account
+                sl_order.append_pair(55, symbol)  # Symbol
+                sl_order.append_pair(54, "1" if sl_side == "BUY" else "2")  # Side
+                sl_order.append_pair(60, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S"))
+                sl_order.append_pair(38, int(quantity * 100000))  # OrderQty
+                sl_order.append_pair(40, "3")  # OrdType = Stop (3)
+                sl_order.append_pair(44, f"{stop_loss:.5f}")  # Price (stop price)
+                sl_order.append_pair(99, f"{stop_loss:.5f}")  # StopPx
+                sl_order.append_pair(59, "1")  # TimeInForce = GTC
+
+                self._send_message(sl_order)
+                self.logger.info(f"✅ Stop Loss order sent at {stop_loss:.5f}")
+
+            # Send Take Profit order (if provided)
+            if take_profit:
+                tp_side = "SELL" if side == "BUY" else "BUY"
+                tp_cl_ord_id = f"TP_{parent_cl_ord_id}_{int(time.time() * 1000)}"
+
+                tp_order = simplefix.FixMessage()
+                tp_order.append_string("8=FIX.4.4")
+                tp_order.append_pair(35, "D")  # MsgType = NewOrderSingle
+                tp_order.append_pair(49, self.sender_comp_id)
+                tp_order.append_pair(50, self.sender_sub_id)  # SenderSubID
+                tp_order.append_pair(56, self.target_comp_id)
+                tp_order.append_pair(34, self.sequence_number)
+                tp_order.append_pair(52, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S"))
+
+                tp_order.append_pair(11, tp_cl_ord_id)  # ClOrdID
+                tp_order.append_pair(1, self.account_id)  # Account
+                tp_order.append_pair(55, symbol)  # Symbol
+                tp_order.append_pair(54, "1" if tp_side == "BUY" else "2")  # Side
+                tp_order.append_pair(60, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S"))
+                tp_order.append_pair(38, int(quantity * 100000))  # OrderQty
+                tp_order.append_pair(40, "2")  # OrdType = Limit (2)
+                tp_order.append_pair(44, f"{take_profit:.5f}")  # Price (limit price)
+                tp_order.append_pair(59, "1")  # TimeInForce = GTC
+
+                self._send_message(tp_order)
+                self.logger.info(f"✅ Take Profit order sent at {take_profit:.5f}")
+
+        except Exception as e:
+            self.logger.error(f"❌ Error sending protective orders: {e}")
 
     def _safety_checks(self):
         """Perform safety checks before placing order"""
