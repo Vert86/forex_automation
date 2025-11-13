@@ -72,15 +72,18 @@ class FIXClient:
         self.logger = logging.getLogger('FIXClient')
         self.logger.setLevel(logging.DEBUG if fconfig.ENABLE_FIX_LOGGING else logging.INFO)
 
-        handler = logging.FileHandler(log_file)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
+        # File handler - can use emojis
+        file_handler = logging.FileHandler(log_file, encoding='utf-8')
+        file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        file_handler.setFormatter(file_formatter)
+        self.logger.addHandler(file_handler)
 
-        # Console handler
+        # Console handler - avoid emojis for Windows compatibility
         console_handler = logging.StreamHandler()
         console_handler.setLevel(logging.INFO)
-        console_handler.setFormatter(formatter)
+        # Use ASCII-friendly format for console
+        console_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        console_handler.setFormatter(console_formatter)
         self.logger.addHandler(console_handler)
 
     def connect(self):
@@ -91,7 +94,7 @@ class FIXClient:
             self.socket.settimeout(30)
             self.socket.connect((self.host, self.port))
             self.connected = True
-            self.logger.info("✅ Connected to FIX server")
+            self.logger.info("[OK] Connected to FIX server")
 
             # Start receive thread
             self.running = True
@@ -102,7 +105,7 @@ class FIXClient:
             return self.login()
 
         except Exception as e:
-            self.logger.error(f"❌ Connection failed: {e}")
+            self.logger.error(f"[FAIL] Connection failed: {e}")
             self.connected = False
             return False
 
@@ -125,13 +128,24 @@ class FIXClient:
             self._send_message(logon)
             self.logger.info("Logon message sent")
 
-            # Wait for logon response
-            time.sleep(2)
+            # Wait for logon response (try multiple times)
+            max_wait = 10  # Wait up to 10 seconds
+            wait_interval = 0.5  # Check every 0.5 seconds
+            waited = 0
 
-            return self.logged_in
+            while waited < max_wait and not self.logged_in:
+                time.sleep(wait_interval)
+                waited += wait_interval
+
+            if self.logged_in:
+                self.logger.info("[OK] Logged in successfully")
+                return True
+            else:
+                self.logger.error(f"[FAIL] Login timeout - no response from server after {max_wait}s")
+                return False
 
         except Exception as e:
-            self.logger.error(f"❌ Login failed: {e}")
+            self.logger.error(f"[FAIL] Login failed: {e}")
             return False
 
     def _send_message(self, message):
@@ -143,7 +157,7 @@ class FIXClient:
             self.logger.debug(f"Sent: {message}")
             return True
         except Exception as e:
-            self.logger.error(f"❌ Send failed: {e}")
+            self.logger.error(f"[FAIL] Send failed: {e}")
             return False
 
     def _receive_loop(self):
@@ -178,7 +192,7 @@ class FIXClient:
 
             if msg_type == b'A':  # Logon
                 self.logged_in = True
-                self.logger.info("✅ Logged in successfully")
+                self.logger.info("[OK] Login accepted by server")
 
             elif msg_type == b'0':  # Heartbeat
                 self.logger.debug("Heartbeat received")
@@ -190,10 +204,13 @@ class FIXClient:
                 self._handle_execution_report(message)
 
             elif msg_type == b'3':  # Reject
-                self.logger.warning(f"⚠️  Message rejected: {message}")
+                self.logger.warning(f"[WARN] Message rejected: {message}")
+                # Try to get reject reason
+                if message.get(58):  # Text field
+                    self.logger.warning(f"[WARN] Reason: {message.get(58).decode()}")
 
             elif msg_type == b'5':  # Logout
-                self.logger.info("Logout received")
+                self.logger.info("Logout received from server")
                 self.logged_in = False
 
             self.logger.debug(f"Received: {message}")
@@ -220,7 +237,7 @@ class FIXClient:
             if exec_type in ['1', '2']:  # Partial fill or Fill (1=PartialFill, 2=Fill)
                 fill_price = float(message.get(44).decode()) if message.get(44) else 0
                 fill_qty = float(message.get(32).decode()) if message.get(32) else 0
-                self.logger.info(f"✅ Order filled: {fill_qty} @ {fill_price}")
+                self.logger.info(f"[OK] Order filled: {fill_qty} @ {fill_price}")
 
                 # Send protective stop loss and take profit orders after main order fills
                 if exec_type == '2' and cl_ord_id in self.orders:  # Fully filled
@@ -279,12 +296,12 @@ class FIXClient:
 
         # DRY RUN mode
         if fconfig.DRY_RUN_MODE:
-            self.logger.info(f"🧪 DRY RUN: Would send {side} {quantity} lots of {symbol}")
+            self.logger.info(f"[DRY_RUN] Would send {side} {quantity} lots of {symbol}")
             self.logger.info(f"   SL: {stop_loss}, TP: {take_profit}")
             return "DRY_RUN_" + str(int(time.time()))
 
         if not self.logged_in:
-            self.logger.error("❌ Not logged in")
+            self.logger.error("[FAIL] Not logged in")
             return None
 
         try:
@@ -334,11 +351,11 @@ class FIXClient:
 
             self.order_count_today += 1
 
-            self.logger.info(f"✅ Market order sent: {side} {quantity} {symbol}")
+            self.logger.info(f"[OK] Market order sent: {side} {quantity} {symbol}")
             return cl_ord_id
 
         except Exception as e:
-            self.logger.error(f"❌ Error sending order: {e}")
+            self.logger.error(f"[FAIL] Error sending order: {e}")
             return None
 
     def _send_protective_orders(self, parent_cl_ord_id, symbol, side, quantity, entry_price, stop_loss, take_profit):
@@ -386,7 +403,7 @@ class FIXClient:
                 sl_order.append_pair(59, "1")  # TimeInForce = GTC
 
                 self._send_message(sl_order)
-                self.logger.info(f"✅ Stop Loss order sent at {stop_loss:.5f}")
+                self.logger.info(f"[OK] Stop Loss order sent at {stop_loss:.5f}")
 
             # Send Take Profit order (if provided)
             if take_profit:
@@ -413,10 +430,10 @@ class FIXClient:
                 tp_order.append_pair(59, "1")  # TimeInForce = GTC
 
                 self._send_message(tp_order)
-                self.logger.info(f"✅ Take Profit order sent at {take_profit:.5f}")
+                self.logger.info(f"[OK] Take Profit order sent at {take_profit:.5f}")
 
         except Exception as e:
-            self.logger.error(f"❌ Error sending protective orders: {e}")
+            self.logger.error(f"[FAIL] Error sending protective orders: {e}")
 
     def _safety_checks(self):
         """Perform safety checks before placing order"""
@@ -427,18 +444,18 @@ class FIXClient:
 
         # Check daily order limit
         if self.order_count_today >= fconfig.MAX_ORDERS_PER_DAY:
-            self.logger.warning(f"⚠️  Daily order limit reached: {self.order_count_today}/{fconfig.MAX_ORDERS_PER_DAY}")
+            self.logger.warning(f"[WARN] Daily order limit reached: {self.order_count_today}/{fconfig.MAX_ORDERS_PER_DAY}")
             return False
 
         # Check max open positions
         open_positions = len([o for o in self.orders.values() if o['status'] in ['NEW', 'PARTIALLY_FILLED']])
         if open_positions >= fconfig.MAX_OPEN_POSITIONS:
-            self.logger.warning(f"⚠️  Max open positions reached: {open_positions}/{fconfig.MAX_OPEN_POSITIONS}")
+            self.logger.warning(f"[WARN] Max open positions reached: {open_positions}/{fconfig.MAX_OPEN_POSITIONS}")
             return False
 
         # Check if auto-trading enabled
         if not fconfig.AUTO_TRADING_ENABLED:
-            self.logger.warning("⚠️  Auto-trading is disabled in config")
+            self.logger.warning("[WARN] Auto-trading is disabled in config")
             return False
 
         return True
@@ -449,7 +466,7 @@ class FIXClient:
 
     def close_all_positions(self):
         """Emergency close all positions"""
-        self.logger.warning("🚨 EMERGENCY: Closing all positions")
+        self.logger.warning("[EMERGENCY] Closing all positions")
         # Implementation depends on getting current positions first
         # This is a placeholder
         pass
@@ -457,20 +474,33 @@ class FIXClient:
     def disconnect(self):
         """Disconnect from FIX server"""
         try:
-            if self.logged_in:
-                # Send logout
-                logout = simplefix.FixMessage()
-                logout.append_string("8=FIX.4.4")
-                logout.append_pair(35, "5")  # MsgType = Logout
-                logout.append_pair(49, self.sender_comp_id)
-                logout.append_pair(56, self.target_comp_id)
-                logout.append_pair(34, self.sequence_number)
-                logout.append_pair(52, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S"))
-                self._send_message(logout)
-
+            # First, stop the receive thread
             self.running = False
+
+            # Send logout if logged in
+            if self.logged_in:
+                try:
+                    logout = simplefix.FixMessage()
+                    logout.append_string("8=FIX.4.4")
+                    logout.append_pair(35, "5")  # MsgType = Logout
+                    logout.append_pair(49, self.sender_comp_id)
+                    logout.append_pair(56, self.target_comp_id)
+                    logout.append_pair(34, self.sequence_number)
+                    logout.append_pair(52, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S"))
+                    self._send_message(logout)
+                except:
+                    pass  # Ignore errors when sending logout
+
+            # Wait a moment for receive thread to exit
+            if self.receive_thread and self.receive_thread.is_alive():
+                time.sleep(0.5)
+
+            # Now close the socket
             if self.socket:
-                self.socket.close()
+                try:
+                    self.socket.close()
+                except:
+                    pass
 
             self.connected = False
             self.logged_in = False
@@ -486,7 +516,7 @@ if __name__ == "__main__":
     print("Testing FIX Client...")
 
     if not fconfig.FIX_SENDER_COMP_ID or not fconfig.FIX_PASSWORD:
-        print("\n⚠️  FIX credentials not configured!")
+        print("\n[WARN] FIX credentials not configured!")
         print("Please update fix_config.py with your ICMarkets FIX API credentials")
         print("\nSee fix_config.py for instructions on how to get your credentials")
         exit(1)
@@ -502,8 +532,9 @@ if __name__ == "__main__":
     client = FIXClient()
 
     try:
+        print("\nAttempting to connect...")
         if client.connect():
-            print("\n✅ Successfully connected and logged in!")
+            print("\n[OK] Successfully connected and logged in!")
 
             # Test dry run order
             if fconfig.DRY_RUN_MODE:
@@ -522,7 +553,8 @@ if __name__ == "__main__":
             time.sleep(30)
 
         else:
-            print("\n❌ Connection failed")
+            print("\n[FAIL] Connection/Login failed")
+            print("Check the log file in fix_logs/ for details")
 
     except KeyboardInterrupt:
         print("\nShutting down...")
