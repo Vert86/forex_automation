@@ -113,13 +113,13 @@ class FIXClient:
         """Send logon message"""
         try:
             logon = simplefix.FixMessage()
-            logon.append_string("8=FIX.4.4")
-            logon.append_pair(35, "A")  # MsgType = Logon
-            logon.append_pair(49, self.sender_comp_id)  # SenderCompID
-            logon.append_pair(50, self.sender_sub_id)  # SenderSubID (TRADE for trading connection)
-            logon.append_pair(56, self.target_comp_id)  # TargetCompID
-            logon.append_pair(34, self.sequence_number)  # MsgSeqNum
-            logon.append_pair(52, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S"))  # SendingTime
+            logon.append_pair(8, "FIX.4.4")  # BeginString
+            logon.append_pair(35, "A", header=True)  # MsgType = Logon
+            logon.append_pair(49, self.sender_comp_id, header=True)  # SenderCompID
+            logon.append_pair(50, self.sender_sub_id, header=True)  # SenderSubID (TRADE for trading connection)
+            logon.append_pair(56, self.target_comp_id, header=True)  # TargetCompID
+            logon.append_pair(34, self.sequence_number, header=True)  # MsgSeqNum
+            logon.append_pair(52, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S.000"), header=True)  # SendingTime
             logon.append_pair(98, 0)  # EncryptMethod = None
             logon.append_pair(108, self.heartbeat_interval)  # HeartBtInt
             logon.append_pair(96, self.password)  # Password
@@ -164,6 +164,10 @@ class FIXClient:
         """Receive messages from FIX server"""
         parser = simplefix.FixParser()
 
+        # Set shorter timeout for receive to allow clean shutdown
+        if self.socket:
+            self.socket.settimeout(1.0)
+
         while self.running and self.connected:
             try:
                 data = self.socket.recv(4096)
@@ -182,7 +186,8 @@ class FIXClient:
             except socket.timeout:
                 continue
             except Exception as e:
-                self.logger.error(f"Receive error: {e}")
+                if self.running:  # Only log errors if we're still supposed to be running
+                    self.logger.error(f"Receive error: {e}")
                 break
 
     def _process_message(self, message):
@@ -261,12 +266,12 @@ class FIXClient:
         """Send heartbeat message"""
         try:
             heartbeat = simplefix.FixMessage()
-            heartbeat.append_string("8=FIX.4.4")
-            heartbeat.append_pair(35, "0")  # MsgType = Heartbeat
-            heartbeat.append_pair(49, self.sender_comp_id)
-            heartbeat.append_pair(56, self.target_comp_id)
-            heartbeat.append_pair(34, self.sequence_number)
-            heartbeat.append_pair(52, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S"))
+            heartbeat.append_pair(8, "FIX.4.4")  # BeginString
+            heartbeat.append_pair(35, "0", header=True)  # MsgType = Heartbeat
+            heartbeat.append_pair(49, self.sender_comp_id, header=True)
+            heartbeat.append_pair(56, self.target_comp_id, header=True)
+            heartbeat.append_pair(34, self.sequence_number, header=True)
+            heartbeat.append_pair(52, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S.000"), header=True)
 
             if test_req_id:
                 heartbeat.append_pair(112, test_req_id)  # TestReqID
@@ -310,18 +315,19 @@ class FIXClient:
 
             # Create new order message
             order = simplefix.FixMessage()
-            order.append_string("8=FIX.4.4")
-            order.append_pair(35, "D")  # MsgType = NewOrderSingle
-            order.append_pair(49, self.sender_comp_id)
-            order.append_pair(56, self.target_comp_id)
-            order.append_pair(34, self.sequence_number)
-            order.append_pair(52, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S"))
+            order.append_pair(8, "FIX.4.4")  # BeginString
+            order.append_pair(35, "D", header=True)  # MsgType = NewOrderSingle
+            order.append_pair(49, self.sender_comp_id, header=True)
+            order.append_pair(50, self.sender_sub_id, header=True)  # SenderSubID
+            order.append_pair(56, self.target_comp_id, header=True)
+            order.append_pair(34, self.sequence_number, header=True)
+            order.append_pair(52, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S.000"), header=True)
 
             order.append_pair(11, cl_ord_id)  # ClOrdID
             order.append_pair(1, self.account_id)  # Account
             order.append_pair(55, symbol)  # Symbol
             order.append_pair(54, "1" if side == "BUY" else "2")  # Side (1=Buy, 2=Sell)
-            order.append_pair(60, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S"))  # TransactTime
+            order.append_pair(60, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S.000"))  # TransactTime
             order.append_pair(38, int(quantity * 100000))  # OrderQty (in units, not lots)
             order.append_pair(40, "1")  # OrdType = Market
             order.append_pair(59, "1")  # TimeInForce = GTC
@@ -383,19 +389,19 @@ class FIXClient:
                 sl_cl_ord_id = f"SL_{parent_cl_ord_id}_{int(time.time() * 1000)}"
 
                 sl_order = simplefix.FixMessage()
-                sl_order.append_string("8=FIX.4.4")
-                sl_order.append_pair(35, "D")  # MsgType = NewOrderSingle
-                sl_order.append_pair(49, self.sender_comp_id)
-                sl_order.append_pair(50, self.sender_sub_id)  # SenderSubID
-                sl_order.append_pair(56, self.target_comp_id)
-                sl_order.append_pair(34, self.sequence_number)
-                sl_order.append_pair(52, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S"))
+                sl_order.append_pair(8, "FIX.4.4")  # BeginString
+                sl_order.append_pair(35, "D", header=True)  # MsgType = NewOrderSingle
+                sl_order.append_pair(49, self.sender_comp_id, header=True)
+                sl_order.append_pair(50, self.sender_sub_id, header=True)  # SenderSubID
+                sl_order.append_pair(56, self.target_comp_id, header=True)
+                sl_order.append_pair(34, self.sequence_number, header=True)
+                sl_order.append_pair(52, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S.000"), header=True)
 
                 sl_order.append_pair(11, sl_cl_ord_id)  # ClOrdID
                 sl_order.append_pair(1, self.account_id)  # Account
                 sl_order.append_pair(55, symbol)  # Symbol
                 sl_order.append_pair(54, "1" if sl_side == "BUY" else "2")  # Side
-                sl_order.append_pair(60, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S"))
+                sl_order.append_pair(60, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S.000"))
                 sl_order.append_pair(38, int(quantity * 100000))  # OrderQty
                 sl_order.append_pair(40, "3")  # OrdType = Stop (3)
                 sl_order.append_pair(44, f"{stop_loss:.5f}")  # Price (stop price)
@@ -411,19 +417,19 @@ class FIXClient:
                 tp_cl_ord_id = f"TP_{parent_cl_ord_id}_{int(time.time() * 1000)}"
 
                 tp_order = simplefix.FixMessage()
-                tp_order.append_string("8=FIX.4.4")
-                tp_order.append_pair(35, "D")  # MsgType = NewOrderSingle
-                tp_order.append_pair(49, self.sender_comp_id)
-                tp_order.append_pair(50, self.sender_sub_id)  # SenderSubID
-                tp_order.append_pair(56, self.target_comp_id)
-                tp_order.append_pair(34, self.sequence_number)
-                tp_order.append_pair(52, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S"))
+                tp_order.append_pair(8, "FIX.4.4")  # BeginString
+                tp_order.append_pair(35, "D", header=True)  # MsgType = NewOrderSingle
+                tp_order.append_pair(49, self.sender_comp_id, header=True)
+                tp_order.append_pair(50, self.sender_sub_id, header=True)  # SenderSubID
+                tp_order.append_pair(56, self.target_comp_id, header=True)
+                tp_order.append_pair(34, self.sequence_number, header=True)
+                tp_order.append_pair(52, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S.000"), header=True)
 
                 tp_order.append_pair(11, tp_cl_ord_id)  # ClOrdID
                 tp_order.append_pair(1, self.account_id)  # Account
                 tp_order.append_pair(55, symbol)  # Symbol
                 tp_order.append_pair(54, "1" if tp_side == "BUY" else "2")  # Side
-                tp_order.append_pair(60, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S"))
+                tp_order.append_pair(60, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S.000"))
                 tp_order.append_pair(38, int(quantity * 100000))  # OrderQty
                 tp_order.append_pair(40, "2")  # OrdType = Limit (2)
                 tp_order.append_pair(44, f"{take_profit:.5f}")  # Price (limit price)
@@ -481,12 +487,12 @@ class FIXClient:
             if self.logged_in:
                 try:
                     logout = simplefix.FixMessage()
-                    logout.append_string("8=FIX.4.4")
-                    logout.append_pair(35, "5")  # MsgType = Logout
-                    logout.append_pair(49, self.sender_comp_id)
-                    logout.append_pair(56, self.target_comp_id)
-                    logout.append_pair(34, self.sequence_number)
-                    logout.append_pair(52, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S"))
+                    logout.append_pair(8, "FIX.4.4")  # BeginString
+                    logout.append_pair(35, "5", header=True)  # MsgType = Logout
+                    logout.append_pair(49, self.sender_comp_id, header=True)
+                    logout.append_pair(56, self.target_comp_id, header=True)
+                    logout.append_pair(34, self.sequence_number, header=True)
+                    logout.append_pair(52, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S.000"), header=True)
                     self._send_message(logout)
                 except:
                     pass  # Ignore errors when sending logout
