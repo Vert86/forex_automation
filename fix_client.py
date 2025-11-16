@@ -334,17 +334,16 @@ class FIXClient:
             order = simplefix.FixMessage()
             order.begin_string = b'FIX.4.4'
             order.append_pair(35, "D", header=True)  # MsgType = NewOrderSingle
-            order.append_pair(49, self.sender_comp_id, header=True)
-            order.append_pair(50, self.sender_sub_id, header=True)  # SenderSubID
-            order.append_pair(56, self.target_comp_id, header=True)
-            order.append_pair(34, self.sequence_number, header=True)
-            order.append_pair(52, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S.000"), header=True)
+            order.append_pair(49, self.sender_comp_id, header=True)  # SenderCompID
+            order.append_pair(56, self.target_comp_id, header=True)  # TargetCompID
+            order.append_pair(34, self.sequence_number, header=True)  # MsgSeqNum
+            order.append_pair(52, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S"), header=True)  # SendingTime (NO milliseconds)
 
+            # Order fields (body)
             order.append_pair(11, cl_ord_id)  # ClOrdID
-            order.append_pair(1, self.account_id)  # Account
             order.append_pair(55, symbol)  # Symbol
             order.append_pair(54, "1" if side == "BUY" else "2")  # Side (1=Buy, 2=Sell)
-            order.append_pair(60, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S.000"))  # TransactTime
+            order.append_pair(60, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S"))  # TransactTime (NO milliseconds)
             order.append_pair(38, int(quantity * 100000))  # OrderQty (in units, not lots)
             order.append_pair(40, "1")  # OrdType = Market
             order.append_pair(59, "1")  # TimeInForce = GTC
@@ -409,16 +408,14 @@ class FIXClient:
                 sl_order.begin_string = b'FIX.4.4'
                 sl_order.append_pair(35, "D", header=True)  # MsgType = NewOrderSingle
                 sl_order.append_pair(49, self.sender_comp_id, header=True)
-                sl_order.append_pair(50, self.sender_sub_id, header=True)  # SenderSubID
                 sl_order.append_pair(56, self.target_comp_id, header=True)
                 sl_order.append_pair(34, self.sequence_number, header=True)
-                sl_order.append_pair(52, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S.000"), header=True)
+                sl_order.append_pair(52, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S"), header=True)
 
                 sl_order.append_pair(11, sl_cl_ord_id)  # ClOrdID
-                sl_order.append_pair(1, self.account_id)  # Account
                 sl_order.append_pair(55, symbol)  # Symbol
                 sl_order.append_pair(54, "1" if sl_side == "BUY" else "2")  # Side
-                sl_order.append_pair(60, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S.000"))
+                sl_order.append_pair(60, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S"))
                 sl_order.append_pair(38, int(quantity * 100000))  # OrderQty
                 sl_order.append_pair(40, "3")  # OrdType = Stop (3)
                 sl_order.append_pair(44, f"{stop_loss:.5f}")  # Price (stop price)
@@ -437,16 +434,14 @@ class FIXClient:
                 tp_order.begin_string = b'FIX.4.4'
                 tp_order.append_pair(35, "D", header=True)  # MsgType = NewOrderSingle
                 tp_order.append_pair(49, self.sender_comp_id, header=True)
-                tp_order.append_pair(50, self.sender_sub_id, header=True)  # SenderSubID
                 tp_order.append_pair(56, self.target_comp_id, header=True)
                 tp_order.append_pair(34, self.sequence_number, header=True)
-                tp_order.append_pair(52, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S.000"), header=True)
+                tp_order.append_pair(52, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S"), header=True)
 
                 tp_order.append_pair(11, tp_cl_ord_id)  # ClOrdID
-                tp_order.append_pair(1, self.account_id)  # Account
                 tp_order.append_pair(55, symbol)  # Symbol
                 tp_order.append_pair(54, "1" if tp_side == "BUY" else "2")  # Side
-                tp_order.append_pair(60, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S.000"))
+                tp_order.append_pair(60, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S"))
                 tp_order.append_pair(38, int(quantity * 100000))  # OrderQty
                 tp_order.append_pair(40, "2")  # OrdType = Limit (2)
                 tp_order.append_pair(44, f"{take_profit:.5f}")  # Price (limit price)
