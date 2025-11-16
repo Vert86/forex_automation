@@ -242,9 +242,11 @@ class FIXClient:
             elif msg_type == b'2':  # Resend Request
                 self.logger.warning("[WARN] Resend Request received")
                 if message.get(7):  # BeginSeqNo
-                    self.logger.warning(f"[WARN] Server requests resend from seq: {message.get(7).decode()}")
-                # For simplicity, we'll just continue - server should accept ResetSeqNumFlag=Y
-                # In production, you'd store and resend messages
+                    begin_seq = int(message.get(7).decode())
+                    end_seq = int(message.get(16).decode()) if message.get(16) else 999999
+                    self.logger.warning(f"[WARN] Server requests resend from seq: {begin_seq} to {end_seq}")
+                    # Send Sequence Reset - Gap Fill to indicate we can't resend
+                    self._send_sequence_reset(begin_seq, self.sequence_number + 1)
 
             elif msg_type == b'8':  # Execution Report
                 self._handle_execution_report(message)
@@ -350,6 +352,31 @@ class FIXClient:
 
         except Exception as e:
             self.logger.error(f"Heartbeat error: {e}")
+
+    def _send_sequence_reset(self, begin_seq, new_seq):
+        """Send Sequence Reset - Gap Fill message"""
+        try:
+            seq_reset = simplefix.FixMessage()
+            seq_reset.begin_string = b'FIX.4.4'
+            seq_reset.append_pair(35, "4", header=True)  # MsgType = Sequence Reset
+            seq_reset.append_pair(49, self.sender_comp_id, header=True)
+            seq_reset.append_pair(56, self.target_comp_id, header=True)
+            seq_reset.append_pair(34, begin_seq, header=True)  # Use the requested sequence number
+            seq_reset.append_pair(52, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S"), header=True)
+
+            seq_reset.append_pair(123, "Y")  # GapFillFlag = Yes
+            seq_reset.append_pair(36, new_seq)  # NewSeqNo - next sequence we'll send
+
+            # Send without incrementing sequence (we're resetting it)
+            self.logger.info(f"[FIX] Sending Sequence Reset: Gap from {begin_seq} to {new_seq}")
+            encoded = seq_reset.encode()
+            self.socket.sendall(encoded)
+
+            # Now update our sequence number to the new value
+            self.sequence_number = new_seq
+
+        except Exception as e:
+            self.logger.error(f"Sequence reset error: {e}")
 
     def _get_symbol_id(self, symbol):
         """
