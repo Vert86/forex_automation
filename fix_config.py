@@ -16,7 +16,7 @@ FIX_PORT = 5202  # Plain text connection (5212 for SSL)
 
 # FIX API Credentials - YOUR DEMO ACCOUNT
 FIX_SENDER_COMP_ID = "demo.icmarkets.9648234"  # Your demo account sender ID
-FIX_TARGET_COMP_ID = "cServer"  # cTrader FIX server ID
+FIX_TARGET_COMP_ID = "CSERVER"  # cTrader FIX server ID (MUST be uppercase per cTrader spec)
 FIX_PASSWORD = "MkSPxC#Vej4Kq$m"  # FIX API password for account 9648234
 FIX_ACCOUNT_ID = "9648234"  # Your demo account number
 FIX_SENDER_SUB_ID = "TRADE"  # Trade connection (use "QUOTE" for price feed)
