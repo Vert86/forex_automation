@@ -118,9 +118,9 @@ class FIXClient:
             logon.append_pair(49, self.sender_comp_id, header=True)  # SenderCompID
             logon.append_pair(56, self.target_comp_id, header=True)  # TargetCompID
             logon.append_pair(34, self.sequence_number, header=True)  # MsgSeqNum
-            logon.append_pair(52, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S"), header=True)  # SendingTime (no milliseconds!)
+            logon.append_pair(52, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S"), header=True)  # SendingTime
             logon.append_pair(57, self.sender_sub_id, header=True)  # TargetSubID = TRADE (SessionQualifier)
-            logon.append_pair(50, "any_string", header=True)  # SenderSubID (can be any string per docs)
+            logon.append_pair(50, self.account_id, header=True)  # SenderSubID = account number (second part of SenderCompID)
             logon.append_pair(98, 0)  # EncryptMethod = None
             logon.append_pair(108, self.heartbeat_interval)  # HeartBtInt
             logon.append_pair(141, "Y")  # ResetSeqNumFlag
