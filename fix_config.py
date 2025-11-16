@@ -78,3 +78,10 @@ IMPORTANT SAFETY:
 - Start with small positions
 - Monitor the bot closely for the first few days
 """
+
+# Import local configuration (if exists) to override sensitive credentials
+# Create fix_config_local.py with your real password (it's in .gitignore)
+try:
+    from fix_config_local import *
+except ImportError:
+    pass  # Local config not found, using defaults above

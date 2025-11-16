@@ -36,8 +36,12 @@ env/
 .env
 .env.local
 
+# Local configuration (contains sensitive credentials)
+fix_config_local.py
+
 # Logs
 *.log
+fix_logs/
 
 # Data files
 *.csv
