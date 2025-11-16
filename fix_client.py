@@ -116,15 +116,16 @@ class FIXClient:
             logon.begin_string = b'FIX.4.4'  # Must be set BEFORE other fields
             logon.append_pair(35, "A", header=True)  # MsgType = Logon
             logon.append_pair(49, self.sender_comp_id, header=True)  # SenderCompID
-            logon.append_pair(50, self.sender_sub_id, header=True)  # SenderSubID (TRADE for trading connection)
             logon.append_pair(56, self.target_comp_id, header=True)  # TargetCompID
+            logon.append_pair(57, self.sender_sub_id, header=True)  # TargetSubID = TRADE (SessionQualifier)
+            logon.append_pair(50, "any_string", header=True)  # SenderSubID (can be any string per docs)
             logon.append_pair(34, self.sequence_number, header=True)  # MsgSeqNum
             logon.append_pair(52, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S.000"), header=True)  # SendingTime
             logon.append_pair(98, 0)  # EncryptMethod = None
             logon.append_pair(108, self.heartbeat_interval)  # HeartBtInt
-            logon.append_pair(96, self.password)  # Password
+            logon.append_pair(553, self.account_id)  # Username (numeric user ID)
+            logon.append_pair(554, self.password)  # Password
             logon.append_pair(141, "Y")  # ResetSeqNumFlag
-            logon.append_pair(1, self.account_id)  # Account - required by some servers
 
             self._send_message(logon)
             self.logger.info("Logon message sent")
