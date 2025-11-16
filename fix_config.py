@@ -18,7 +18,7 @@ FIX_PORT = 5202  # Plain text connection (5212 for SSL)
 FIX_SENDER_COMP_ID = "demo.icmarkets.9648234"  # Format: environment.broker.accountID
 FIX_TARGET_COMP_ID = "CSERVER"  # cTrader FIX server ID (MUST be uppercase per cTrader spec)
 FIX_CTRADER_ID = "calvertedwards"  # Your cTrader ID (username)
-FIX_PASSWORD = "VertTrade123!"  # Your cTrader account password
+FIX_PASSWORD = ""  # Your cTrader account password (DO NOT COMMIT YOUR REAL PASSWORD)
 FIX_ACCOUNT_ID = "9648234"  # Your demo account number
 FIX_SENDER_SUB_ID = "TRADE"  # Trade connection (use "QUOTE" for price feed)
 
@@ -28,6 +28,7 @@ FIX_VERSION = "FIX.4.4"  # cTrader uses FIX 4.4
 # Order Execution Settings
 DEFAULT_ORDER_TYPE = "MARKET"  # MARKET, LIMIT, STOP
 DEFAULT_TIME_IN_FORCE = "GTC"  # GTC (Good Till Cancel), IOC (Immediate or Cancel), FOK (Fill or Kill)
+DEFAULT_LOT_SIZE = 0.01  # Default trading lot size (0.01 = 1,000 units)
 
 # Safety Controls
 MAX_ORDERS_PER_DAY = 20  # Maximum orders per day

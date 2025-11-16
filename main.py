@@ -38,12 +38,20 @@ class ForexTradingBot:
         self.notifier = TelegramNotifier()
 
         # Initialize order executor (for automatic trading)
+        # DEFAULT: Try to use FIX API for live trading, fallback to Telegram signals
         self.order_executor = None
-        if ORDER_EXECUTOR_AVAILABLE and fix_config.AUTO_TRADING_ENABLED:
-            print("\n🤖 Auto-trading mode: ENABLED")
-            self.order_executor = OrderExecutor(telegram_notifier=self.notifier)
+        self.fix_api_failed = False
+        if ORDER_EXECUTOR_AVAILABLE:
+            try:
+                print("\n🤖 Attempting to initialize FIX API for live trading...")
+                self.order_executor = OrderExecutor(telegram_notifier=self.notifier)
+                print("✅ FIX API initialized successfully - Live trading mode active")
+            except Exception as e:
+                print(f"⚠️  FIX API initialization failed: {e}")
+                print("📊 Falling back to signals-only mode (Telegram notifications)")
+                self.fix_api_failed = True
         else:
-            print("\n📊 Signals-only mode: Bot will send alerts without executing trades")
+            print("\n📊 Signals-only mode: Bot will send alerts via Telegram without executing trades")
 
         # Statistics
         self.signals_today = {'BUY': 0, 'SELL': 0, 'HOLD': 0}
@@ -175,7 +183,8 @@ class ForexTradingBot:
 
     def send_signals(self, signals):
         """
-        Send trading signals via Telegram and optionally execute trades
+        Send trading signals via FIX API (default) or Telegram (fallback)
+        Priority: 1. FIX API live trading, 2. Telegram signals if FIX unavailable
 
         Args:
             signals: List of signal dicts
@@ -184,29 +193,50 @@ class ForexTradingBot:
             try:
                 print(f"\n📤 Processing signal for {signal_data['symbol']}...")
 
-                # Send Telegram notification
-                response = self.notifier.send_trade_signal(
-                    trade_details=signal_data['trade_details'],
-                    signal_info=signal_data['signal']
-                )
-
-                if response:
-                    print(f"✅ Signal sent successfully for {signal_data['symbol']}")
-                else:
-                    print(f"⚠️  Failed to send signal for {signal_data['symbol']}")
-
-                # Execute trade if auto-trading is enabled
+                # Priority 1: Try to execute via FIX API
                 if self.order_executor:
-                    print(f"\n🤖 Executing automatic trade for {signal_data['symbol']}...")
-                    exec_result = self.order_executor.execute_trade(
+                    print(f"🤖 Executing live trade via FIX API for {signal_data['symbol']}...")
+                    try:
+                        exec_result = self.order_executor.execute_trade(
+                            trade_details=signal_data['trade_details'],
+                            signal_info=signal_data['signal']
+                        )
+
+                        if exec_result['success']:
+                            print(f"✅ Trade executed via FIX API: {exec_result['order_id']} ({exec_result['mode']})")
+                            # Also send Telegram confirmation
+                            self.notifier.send_trade_signal(
+                                trade_details=signal_data['trade_details'],
+                                signal_info=signal_data['signal']
+                            )
+                        else:
+                            print(f"⚠️  FIX API trade failed: {exec_result['message']}")
+                            print(f"📊 Sending signal via Telegram instead...")
+                            # Fallback to Telegram signal
+                            self.notifier.send_trade_signal(
+                                trade_details=signal_data['trade_details'],
+                                signal_info=signal_data['signal']
+                            )
+                    except Exception as fix_error:
+                        print(f"❌ FIX API error: {fix_error}")
+                        print(f"📊 Falling back to Telegram signal...")
+                        # Fallback to Telegram if FIX fails
+                        self.notifier.send_trade_signal(
+                            trade_details=signal_data['trade_details'],
+                            signal_info=signal_data['signal']
+                        )
+                else:
+                    # Priority 2: Send via Telegram if FIX API not available
+                    print(f"📊 Sending signal via Telegram (FIX API not available)...")
+                    response = self.notifier.send_trade_signal(
                         trade_details=signal_data['trade_details'],
                         signal_info=signal_data['signal']
                     )
 
-                    if exec_result['success']:
-                        print(f"✅ Trade executed: {exec_result['order_id']} ({exec_result['mode']})")
+                    if response:
+                        print(f"✅ Signal sent successfully for {signal_data['symbol']}")
                     else:
-                        print(f"⚠️  Trade not executed: {exec_result['message']}")
+                        print(f"⚠️  Failed to send signal for {signal_data['symbol']}")
 
             except Exception as e:
                 print(f"❌ Error processing signal for {signal_data['symbol']}: {e}")
