@@ -21,6 +21,31 @@ except ImportError:
 import fix_config as fconfig
 
 
+# ICMarkets cTrader Symbol ID Mapping
+# Symbol IDs are broker-specific - these need to be updated based on your broker
+# To find your symbol IDs: Open cTrader > Symbol Info (i icon) > scroll to "FIX Symbol ID"
+SYMBOL_ID_MAP = {
+    # Forex pairs (examples - verify with your broker)
+    'EURUSD': '1',
+    'GBPUSD': '2',
+    'USDJPY': '3',
+    'AUDUSD': '4',
+    'USDCAD': '5',
+    'NZDUSD': '6',
+    'USDCHF': '7',
+
+    # Commodities (examples - MUST be verified)
+    'XAUUSD': 'XAUUSD',  # Gold - placeholder, needs numeric ID
+    'XAGUSD': 'XAGUSD',  # Silver - placeholder, needs numeric ID
+    'XTIUSD': 'XTIUSD',  # Oil - placeholder, needs numeric ID
+
+    # Crypto (examples - MUST be verified)
+    'BTCUSD': 'BTCUSD',  # Bitcoin - placeholder, needs numeric ID
+    'ETHUSD': 'ETHUSD',  # Ethereum - placeholder, needs numeric ID
+    'LTCUSD': 'LTCUSD',  # Litecoin - placeholder, needs numeric ID
+}
+
+
 class FIXClient:
     """FIX API Client for cTrader"""
 
@@ -234,6 +259,15 @@ class FIXClient:
                     self.logger.warning(f"[WARN] Logout reason: {message.get(58).decode()}")
                 self.logged_in = False
 
+            elif msg_type == b'j':  # Business Message Reject
+                self.logger.error("[FAIL] Business Message Reject")
+                if message.get(58):  # Text
+                    self.logger.error(f"[FAIL] Reject reason: {message.get(58).decode()}")
+                if message.get(379):  # Business reject ref ID
+                    self.logger.error(f"[FAIL] Reference ID: {message.get(379).decode()}")
+                if message.get(380):  # Business reject reason
+                    self.logger.error(f"[FAIL] Reason code: {message.get(380).decode()}")
+
             else:
                 self.logger.warning(f"[WARN] Unknown message type: {msg_type}")
 
@@ -298,6 +332,22 @@ class FIXClient:
         except Exception as e:
             self.logger.error(f"Heartbeat error: {e}")
 
+    def _get_symbol_id(self, symbol):
+        """
+        Convert symbol name to numeric ID (broker-specific)
+
+        Args:
+            symbol: Symbol name (e.g., "EURUSD")
+
+        Returns:
+            Symbol ID or original symbol if not found
+        """
+        symbol_id = SYMBOL_ID_MAP.get(symbol, symbol)
+        if symbol_id == symbol and not symbol_id.isdigit():
+            self.logger.warning(f"[WARN] Symbol '{symbol}' not in mapping - using as-is (may fail)")
+            self.logger.warning(f"[WARN] Update SYMBOL_ID_MAP in fix_client.py with correct numeric ID")
+        return symbol_id
+
     def send_market_order(self, symbol, side, quantity, stop_loss=None, take_profit=None):
         """
         Send market order
@@ -330,6 +380,9 @@ class FIXClient:
             # Generate unique client order ID
             cl_ord_id = f"ORD_{int(time.time() * 1000)}"
 
+            # Convert symbol to numeric ID
+            symbol_id = self._get_symbol_id(symbol)
+
             # Create new order message
             order = simplefix.FixMessage()
             order.begin_string = b'FIX.4.4'
@@ -341,7 +394,7 @@ class FIXClient:
 
             # Order fields (body)
             order.append_pair(11, cl_ord_id)  # ClOrdID
-            order.append_pair(55, symbol)  # Symbol
+            order.append_pair(55, symbol_id)  # Symbol (numeric ID)
             order.append_pair(54, "1" if side == "BUY" else "2")  # Side (1=Buy, 2=Sell)
             order.append_pair(60, datetime.utcnow().strftime("%Y%m%d-%H:%M:%S"))  # TransactTime (NO milliseconds)
             order.append_pair(38, int(quantity * 100000))  # OrderQty (in units, not lots)
