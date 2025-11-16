@@ -122,7 +122,7 @@ class OrderExecutor:
                     "⚠️ FIRST TRADE CONFIRMATION REQUIRED\n\n"
                     "The bot wants to execute its first trade.\n"
                     "Set REQUIRE_CONFIRMATION = False in fix_config.py to allow automatic execution.\n\n"
-                    f"Trade: {trade_details['direction']} {trade_details['quantity']} {trade_details['symbol']}"
+                    f"Trade: {trade_details['direction']} {trade_details['position_size']} lots {trade_details['symbol']}"
                 )
             return result
 
