@@ -28,21 +28,21 @@ SYMBOL_ID_MAP = {
     # Forex pairs (examples - verify with your broker)
     'EURUSD': '1',
     'GBPUSD': '2',
-    'USDJPY': '3',
-    'AUDUSD': '4',
-    'USDCAD': '5',
-    'NZDUSD': '6',
-    'USDCHF': '7',
+    'USDJPY': '4',
+    'AUDUSD': '5',
+    'USDCAD': '8',
+    'NZDUSD': '12',
+    'USDCHF': '6',
 
     # Commodities (examples - MUST be verified)
-    'XAUUSD': 'XAUUSD',  # Gold - placeholder, needs numeric ID
-    'XAGUSD': 'XAGUSD',  # Silver - placeholder, needs numeric ID
-    'XTIUSD': 'XTIUSD',  # Oil - placeholder, needs numeric ID
+    'XAUUSD': '41',  # Gold - placeholder, needs numeric ID
+    'XAGUSD': '42',  # Silver - placeholder, needs numeric ID
+    'XTIUSD': '10019',  # Oil - placeholder, needs numeric ID
 
     # Crypto (examples - MUST be verified)
-    'BTCUSD': 'BTCUSD',  # Bitcoin - placeholder, needs numeric ID
-    'ETHUSD': 'ETHUSD',  # Ethereum - placeholder, needs numeric ID
-    'LTCUSD': 'LTCUSD',  # Litecoin - placeholder, needs numeric ID
+    'BTCUSD': '10026',  # Bitcoin - placeholder, needs numeric ID
+    'ETHUSD': '10029',  # Ethereum - placeholder, needs numeric ID
+    'LTCUSD': '10030',  # Litecoin - placeholder, needs numeric ID
 }
 
 
@@ -239,6 +239,13 @@ class FIXClient:
             elif msg_type == b'1':  # Test Request
                 self._send_heartbeat(message.get(112))  # Echo TestReqID
 
+            elif msg_type == b'2':  # Resend Request
+                self.logger.warning("[WARN] Resend Request received")
+                if message.get(7):  # BeginSeqNo
+                    self.logger.warning(f"[WARN] Server requests resend from seq: {message.get(7).decode()}")
+                # For simplicity, we'll just continue - server should accept ResetSeqNumFlag=Y
+                # In production, you'd store and resend messages
+
             elif msg_type == b'8':  # Execution Report
                 self._handle_execution_report(message)
 
@@ -289,14 +296,26 @@ class FIXClient:
                 self.orders[cl_ord_id]['status'] = ord_status
                 self.orders[cl_ord_id]['order_id'] = order_id
 
+                # Check for rejection
+                if ord_status in ['8', 'C']:  # 8=Rejected, C=Expired/Canceled
+                    reject_reason = message.get(58).decode() if message.get(58) else "Unknown"
+                    self.orders[cl_ord_id]['reject_reason'] = reject_reason
+                    self.logger.error(f"[FAIL] Order {cl_ord_id} rejected: {reject_reason}")
+
             # Log execution
-            if exec_type in ['1', '2']:  # Partial fill or Fill (1=PartialFill, 2=Fill)
+            if exec_type in ['1', '2', 'F']:  # 1=PartialFill, 2=Fill, F=Trade
                 fill_price = float(message.get(44).decode()) if message.get(44) else 0
                 fill_qty = float(message.get(32).decode()) if message.get(32) else 0
                 self.logger.info(f"[OK] Order filled: {fill_qty} @ {fill_price}")
 
+                # Mark as filled
+                if cl_ord_id in self.orders:
+                    self.orders[cl_ord_id]['filled'] = True
+                    self.orders[cl_ord_id]['fill_price'] = fill_price
+                    self.orders[cl_ord_id]['fill_qty'] = fill_qty
+
                 # Send protective stop loss and take profit orders after main order fills
-                if exec_type == '2' and cl_ord_id in self.orders:  # Fully filled
+                if exec_type in ['2', 'F'] and cl_ord_id in self.orders:  # Fully filled
                     order_data = self.orders[cl_ord_id]
                     if order_data.get('stop_loss') or order_data.get('take_profit'):
                         self.logger.info("Sending protective orders (SL/TP)...")
@@ -421,13 +440,39 @@ class FIXClient:
                 'stop_loss': stop_loss,
                 'take_profit': take_profit,
                 'status': 'PENDING',
-                'timestamp': datetime.now()
+                'timestamp': datetime.now(),
+                'filled': False,
+                'fill_price': None,
+                'reject_reason': None
             }
 
-            self.order_count_today += 1
-
             self.logger.info(f"[OK] Market order sent: {side} {quantity} {symbol}")
-            return cl_ord_id
+
+            # Wait for execution report (up to 10 seconds)
+            wait_time = 0
+            max_wait = 10
+            while wait_time < max_wait:
+                time.sleep(0.5)
+                wait_time += 0.5
+
+                order_status = self.orders.get(cl_ord_id, {})
+
+                # Check if order was filled
+                if order_status.get('filled'):
+                    self.order_count_today += 1
+                    self.logger.info(f"[OK] Order {cl_ord_id} FILLED at {order_status.get('fill_price')}")
+                    return cl_ord_id
+
+                # Check if order was rejected
+                if order_status.get('status') in ['REJECTED', 'CANCELED']:
+                    reason = order_status.get('reject_reason', 'Unknown')
+                    self.logger.error(f"[FAIL] Order {cl_ord_id} REJECTED: {reason}")
+                    return None
+
+            # Timeout waiting for confirmation
+            self.logger.warning(f"[WARN] Order {cl_ord_id} confirmation timeout after {max_wait}s")
+            self.logger.warning(f"[WARN] Order may still execute - check platform manually")
+            return None  # Return None if no confirmation received
 
         except Exception as e:
             self.logger.error(f"[FAIL] Error sending order: {e}")
