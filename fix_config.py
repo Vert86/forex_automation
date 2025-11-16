@@ -15,9 +15,10 @@ FIX_HOST = "demo-uk-eqx-01.p.c-trader.com"  # ICMarkets UK Demo server
 FIX_PORT = 5202  # Plain text connection (5212 for SSL)
 
 # FIX API Credentials - YOUR DEMO ACCOUNT
-FIX_SENDER_COMP_ID = "demo.icmarkets.9648234"  # Your demo account sender ID
+FIX_SENDER_COMP_ID = "demo.icmarkets.9648234"  # Format: environment.broker.accountID
 FIX_TARGET_COMP_ID = "CSERVER"  # cTrader FIX server ID (MUST be uppercase per cTrader spec)
-FIX_PASSWORD = "MkSPxC#Vej4Kq$m"  # FIX API password for account 9648234
+FIX_CTRADER_ID = "calvertedwards"  # Your cTrader ID (username)
+FIX_PASSWORD = "VertTrade123!"  # Your cTrader account password
 FIX_ACCOUNT_ID = "9648234"  # Your demo account number
 FIX_SENDER_SUB_ID = "TRADE"  # Trade connection (use "QUOTE" for price feed)
 
