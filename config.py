@@ -46,7 +46,7 @@ FIBONACCI_EXTENSIONS = [1.272, 1.618, 2.618]
 TIMEFRAME = "1h"  # Options: 1m, 5m, 15m, 30m, 1h, 4h, 1d
 
 # Confluence Requirements (minimum number of signals needed)
-MIN_CONFLUENCE_SIGNALS = 2
+MIN_CONFLUENCE_SIGNALS = 1  # Lowered from 2 to get more trades
 
 # Trading Hours (24/7 for crypto, specific hours for forex)
 TRADING_ENABLED = True
