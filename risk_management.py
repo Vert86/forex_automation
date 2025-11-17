@@ -71,8 +71,12 @@ class RiskManagement:
         Returns:
             Position size in lots
         """
-        # If fixed lot size is enabled, always use DEFAULT_LOT_SIZE
+        # If fixed lot size is enabled, check for symbol-specific lot size first
         if config.USE_FIXED_LOT_SIZE:
+            # Check if this symbol has a custom lot size
+            if hasattr(config, 'SYMBOL_LOT_SIZES') and symbol in config.SYMBOL_LOT_SIZES:
+                return config.SYMBOL_LOT_SIZES[symbol]
+            # Otherwise use default
             return config.DEFAULT_LOT_SIZE
 
         # Calculate risk amount in account currency

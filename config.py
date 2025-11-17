@@ -61,6 +61,15 @@ DEFAULT_LOT_SIZE = 0.01  # Fixed lot size when USE_FIXED_LOT_SIZE=True, or fallb
 MIN_LOT_SIZE = 0.01
 MAX_LOT_SIZE = 1.0
 
+# Symbol-specific lot sizes (overrides DEFAULT_LOT_SIZE for specific symbols)
+# Used when USE_FIXED_LOT_SIZE = True
+SYMBOL_LOT_SIZES = {
+    'BTCUSD': 0.00001,  # Max 10 units for BTC (broker limit)
+    'ETHUSD': 0.00001,  # Max 10 units for ETH (broker limit)
+    'LTCUSD': 0.0001,   # Litecoin - smaller size
+    # Forex and commodities will use DEFAULT_LOT_SIZE (0.01)
+}
+
 # Update Interval (in minutes)
 UPDATE_INTERVAL = 60  # Check for signals every 60 minutes
 
