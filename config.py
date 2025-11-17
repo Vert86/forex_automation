@@ -56,7 +56,8 @@ MAX_VOLATILITY_THRESHOLD = 3.0  # Maximum ATR multiplier for volatility filter
 MIN_VOLATILITY_THRESHOLD = 0.3  # Minimum ATR multiplier for volatility filter
 
 # Position Sizing
-DEFAULT_LOT_SIZE = 0.01  # Default lot size if position sizing fails
+USE_FIXED_LOT_SIZE = True  # If True, always use DEFAULT_LOT_SIZE instead of risk-based calculation
+DEFAULT_LOT_SIZE = 0.01  # Fixed lot size when USE_FIXED_LOT_SIZE=True, or fallback if calculation fails
 MIN_LOT_SIZE = 0.01
 MAX_LOT_SIZE = 1.0
 

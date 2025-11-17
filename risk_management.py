@@ -71,6 +71,10 @@ class RiskManagement:
         Returns:
             Position size in lots
         """
+        # If fixed lot size is enabled, always use DEFAULT_LOT_SIZE
+        if config.USE_FIXED_LOT_SIZE:
+            return config.DEFAULT_LOT_SIZE
+
         # Calculate risk amount in account currency
         risk_amount = self.account_balance * (config.RISK_PER_TRADE_PERCENT / 100)
 
