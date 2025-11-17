@@ -206,6 +206,7 @@ class FIXClient:
                     self.connected = False
                     break
 
+                self.logger.debug(f"Received {len(data)} bytes of data")
                 parser.append_buffer(data)
                 message = parser.get_message()
 
@@ -306,7 +307,8 @@ class FIXClient:
 
             # Log execution
             if exec_type in ['1', '2', 'F']:  # 1=PartialFill, 2=Fill, F=Trade
-                fill_price = float(message.get(44).decode()) if message.get(44) else 0
+                # For market orders, use Tag 6 (AvgPx). For limit orders, use Tag 44 (Price)
+                fill_price = float(message.get(6).decode()) if message.get(6) else (float(message.get(44).decode()) if message.get(44) else 0)
                 fill_qty = float(message.get(32).decode()) if message.get(32) else 0
                 self.logger.info(f"[OK] Order filled: {fill_qty} @ {fill_price}")
 
