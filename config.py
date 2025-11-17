@@ -53,7 +53,7 @@ TRADING_ENABLED = True
 
 # Volatility Filter
 MAX_VOLATILITY_THRESHOLD = 3.0  # Maximum ATR multiplier for volatility filter
-MIN_VOLATILITY_THRESHOLD = 0.2  # Minimum ATR multiplier for volatility filter
+MIN_VOLATILITY_THRESHOLD = 0.1  # Minimum ATR multiplier for volatility filter
 
 # Position Sizing
 USE_FIXED_LOT_SIZE = True  # If True, always use DEFAULT_LOT_SIZE instead of risk-based calculation
