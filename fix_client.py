@@ -28,11 +28,14 @@ SYMBOL_ID_MAP = {
     # Forex pairs (examples - verify with your broker)
     'EURUSD': '1',
     'GBPUSD': '2',
+    'EURGBP': '3',
     'USDJPY': '4',
     'AUDUSD': '5',
-    'USDCAD': '8',
-    'NZDUSD': '12',
     'USDCHF': '6',
+    'USDCAD': '8',
+    'EURAUD': '9',
+    'NZDUSD': '12',
+    'AUDCAD': '13',
 
     # Commodities (examples - MUST be verified)
     'XAUUSD': '41',  # Gold - placeholder, needs numeric ID
